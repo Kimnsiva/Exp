@@ -7,15 +7,52 @@
     <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
     <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/lucide/0.263.1/umd/lucide.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .lucide { width: 1em; height: 1em; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+    </style>
 </head>
 <body>
     <div id="root"></div>
 
     <script type="text/babel">
         const { useState, useEffect } = React;
-        const { Plus, Calendar, CreditCard, Home, Trash2, Edit3 } = lucide;
+        
+        // Lucide icons as SVG components
+        const Plus = () => (
+            <svg className="lucide" viewBox="0 0 24 24">
+                <path d="M5 12h14M12 5v14"/>
+            </svg>
+        );
+        
+        const Calendar = () => (
+            <svg className="lucide" viewBox="0 0 24 24">
+                <path d="M8 2v4M16 2v4"/>
+                <rect width="18" height="18" x="3" y="4" rx="2"/>
+                <path d="M3 10h18"/>
+            </svg>
+        );
+        
+        const CreditCard = () => (
+            <svg className="lucide" viewBox="0 0 24 24">
+                <rect width="20" height="14" x="2" y="5" rx="2"/>
+                <path d="M2 10h20"/>
+            </svg>
+        );
+        
+        const Home = () => (
+            <svg className="lucide" viewBox="0 0 24 24">
+                <path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/>
+                <path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+            </svg>
+        );
+        
+        const Trash2 = () => (
+            <svg className="lucide" viewBox="0 0 24 24">
+                <path d="M3 6h18M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>
+                <path d="M10 11v6M14 11v6"/>
+            </svg>
+        );
 
         const MonthlyExpenseTracker = () => {
           const [currentPage, setCurrentPage] = useState('dashboard');
@@ -25,7 +62,6 @@
           const [creditInstallments, setCreditInstallments] = useState([]);
           const [showAddForm, setShowAddForm] = useState(false);
           const [showCreditForm, setShowCreditForm] = useState(false);
-          const [editingItem, setEditingItem] = useState(null);
 
           // Sample data
           useEffect(() => {
@@ -103,16 +139,18 @@
             setCreditInstallments(creditInstallments.filter(c => c.id !== id));
           };
 
-          const TransactionForm = ({ onSubmit, onCancel, editData }) => {
+          const TransactionForm = ({ onSubmit, onCancel }) => {
             const [formData, setFormData] = useState({
-              year: editData?.year || selectedYear,
-              month: editData?.month || selectedMonth,
-              item: editData?.item || '',
-              income: editData?.income || '',
-              outcome: editData?.outcome || ''
+              year: selectedYear,
+              month: selectedMonth,
+              item: '',
+              income: '',
+              outcome: ''
             });
 
-            const handleSubmit = () => {
+            const handleSubmit = (e) => {
+              e.preventDefault();
+              if (!formData.item) return;
               onSubmit(formData);
             };
 
@@ -120,7 +158,7 @@
               <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
                 <div className="bg-white p-6 rounded-lg max-w-md w-full mx-4">
                   <h3 className="text-lg font-semibold mb-4">เพิ่มรายการใหม่</h3>
-                  <div className="space-y-4">
+                  <form onSubmit={handleSubmit} className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">ปี</label>
@@ -129,6 +167,7 @@
                           value={formData.year}
                           onChange={(e) => setFormData({...formData, year: e.target.value})}
                           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-500"
+                          required
                         />
                       </div>
                       <div>
@@ -137,6 +176,7 @@
                           value={formData.month}
                           onChange={(e) => setFormData({...formData, month: e.target.value})}
                           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-500"
+                          required
                         >
                           {Array.from({length: 12}, (_, i) => (
                             <option key={i+1} value={i+1}>{monthNames[i]}</option>
@@ -160,6 +200,7 @@
                         <input
                           type="number"
                           step="0.01"
+                          min="0"
                           value={formData.income}
                           onChange={(e) => setFormData({...formData, income: e.target.value})}
                           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-500"
@@ -170,6 +211,7 @@
                         <input
                           type="number"
                           step="0.01"
+                          min="0"
                           value={formData.outcome}
                           onChange={(e) => setFormData({...formData, outcome: e.target.value})}
                           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-500"
@@ -178,19 +220,20 @@
                     </div>
                     <div className="flex gap-3 pt-4">
                       <button
-                        onClick={handleSubmit}
+                        type="submit"
                         className="flex-1 bg-gray-900 text-white py-2 px-4 rounded-md hover:bg-gray-800 transition-colors"
                       >
                         บันทึก
                       </button>
                       <button
+                        type="button"
                         onClick={onCancel}
                         className="flex-1 bg-gray-200 text-gray-800 py-2 px-4 rounded-md hover:bg-gray-300 transition-colors"
                       >
                         ยกเลิก
                       </button>
                     </div>
-                  </div>
+                  </form>
                 </div>
               </div>
             );
@@ -205,7 +248,9 @@
               amount: ''
             });
 
-            const handleSubmit = () => {
+            const handleSubmit = (e) => {
+              e.preventDefault();
+              if (!formData.bank || !formData.item || !formData.amount) return;
               onSubmit(formData);
             };
 
@@ -213,7 +258,7 @@
               <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
                 <div className="bg-white p-6 rounded-lg max-w-md w-full mx-4">
                   <h3 className="text-lg font-semibold mb-4">เพิ่มรายการผ่อนบัตรเครดิต</h3>
-                  <div className="space-y-4">
+                  <form onSubmit={handleSubmit} className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">ปี</label>
@@ -222,6 +267,7 @@
                           value={formData.year}
                           onChange={(e) => setFormData({...formData, year: e.target.value})}
                           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-500"
+                          required
                         />
                       </div>
                       <div>
@@ -230,6 +276,7 @@
                           value={formData.month}
                           onChange={(e) => setFormData({...formData, month: e.target.value})}
                           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-500"
+                          required
                         >
                           {Array.from({length: 12}, (_, i) => (
                             <option key={i+1} value={i+1}>{monthNames[i]}</option>
@@ -268,6 +315,7 @@
                       <input
                         type="number"
                         step="0.01"
+                        min="0"
                         value={formData.amount}
                         onChange={(e) => setFormData({...formData, amount: e.target.value})}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-500"
@@ -276,19 +324,20 @@
                     </div>
                     <div className="flex gap-3 pt-4">
                       <button
-                        onClick={handleSubmit}
+                        type="submit"
                         className="flex-1 bg-gray-900 text-white py-2 px-4 rounded-md hover:bg-gray-800 transition-colors"
                       >
                         บันทึก
                       </button>
                       <button
+                        type="button"
                         onClick={onCancel}
                         className="flex-1 bg-gray-200 text-gray-800 py-2 px-4 rounded-md hover:bg-gray-300 transition-colors"
                       >
                         ยกเลิก
                       </button>
                     </div>
-                  </div>
+                  </form>
                 </div>
               </div>
             );
