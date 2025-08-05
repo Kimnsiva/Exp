@@ -62,6 +62,11 @@
           const [showCreditForm, setShowCreditForm] = useState(false);
           const [editingTransaction, setEditingTransaction] = useState(null);
           const [editingCredit, setEditingCredit] = useState(null);
+          
+          // Bank management states
+          const [banks, setBanks] = useState(['KTC', 'Kbank', 'SP', 'SCB', 'BBL']);
+          const [showBankForm, setShowBankForm] = useState(false);
+          const [editingBank, setEditingBank] = useState(null);
 
           // Sample data
           useEffect(() => {
@@ -93,6 +98,10 @@
             return transactions.filter(t => t.year === selectedYear && t.month === selectedMonth);
           };
 
+          const getCurrentMonthCreditData = () => {
+            return creditInstallments.filter(c => c.year === selectedYear && c.month === selectedMonth);
+          };
+
           const getTotalIncome = (data) => {
             return data.reduce((sum, t) => sum + t.income, 0);
           };
@@ -101,8 +110,15 @@
             return data.reduce((sum, t) => sum + t.outcome, 0);
           };
 
-          const getBalance = (data) => {
-            return getTotalIncome(data) - getTotalOutcome(data);
+          const getTotalCreditOutcome = (creditData) => {
+            return creditData.reduce((sum, c) => sum + c.amount, 0);
+          };
+
+          const getBalance = (data, creditData) => {
+            const totalIncome = getTotalIncome(data);
+            const totalOutcome = getTotalOutcome(data);
+            const totalCreditOutcome = getTotalCreditOutcome(creditData);
+            return totalIncome - totalOutcome - totalCreditOutcome;
           };
 
           const handleAddTransaction = (formData) => {
@@ -170,6 +186,41 @@
           const handleDeleteCredit = (id) => {
             if (confirm('คุณต้องการลบรายการนี้หรือไม่?')) {
               setCreditInstallments(creditInstallments.filter(c => c.id !== id));
+            }
+          };
+
+          // Bank CRUD functions
+          const handleAddBank = (bankName) => {
+            if (banks.includes(bankName)) {
+              alert('ธนาคารนี้มีอยู่แล้ว');
+              return;
+            }
+            setBanks([...banks, bankName]);
+            setShowBankForm(false);
+          };
+
+          const handleEditBank = (oldName, newName) => {
+            if (banks.includes(newName) && oldName !== newName) {
+              alert('ธนาคารนี้มีอยู่แล้ว');
+              return;
+            }
+            setBanks(banks.map(bank => bank === oldName ? newName : bank));
+            // Update existing credit installments
+            setCreditInstallments(creditInstallments.map(c => 
+              c.bank === oldName ? { ...c, bank: newName } : c
+            ));
+            setEditingBank(null);
+          };
+
+          const handleDeleteBank = (bankName) => {
+            // Check if bank has credit installments
+            const hasInstallments = creditInstallments.some(c => c.bank === bankName);
+            if (hasInstallments) {
+              alert('ไม่สามารถลบธนาคารนี้ได้ เนื่องจากมีรายการผ่อนอยู่');
+              return;
+            }
+            if (confirm(`คุณต้องการลบธนาคาร ${bankName} หรือไม่?`)) {
+              setBanks(banks.filter(bank => bank !== bankName));
             }
           };
 
@@ -328,11 +379,9 @@
                         required
                       >
                         <option value="">เลือกธนาคาร</option>
-                        <option value="KTC">KTC</option>
-                        <option value="Kbank">Kbank</option>
-                        <option value="SP">SP</option>
-                        <option value="SCB">SCB</option>
-                        <option value="BBL">BBL</option>
+                        {banks.map(bank => (
+                          <option key={bank} value={bank}>{bank}</option>
+                        ))}
                       </select>
                     </div>
                     <div>
@@ -376,10 +425,65 @@
             );
           };
 
+          const BankForm = ({ onSubmit, onCancel, editData, isEditing }) => {
+            const [bankName, setBankName] = useState(editData || '');
+
+            const handleSubmit = () => {
+              if (!bankName.trim()) {
+                alert('กรุณากรอกชื่อธนาคาร');
+                return;
+              }
+              if (isEditing) {
+                onSubmit(editData, bankName.trim());
+              } else {
+                onSubmit(bankName.trim());
+              }
+            };
+
+            return (
+              <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                <div className="bg-white p-6 rounded-lg max-w-md w-full mx-4">
+                  <h3 className="text-lg font-semibold mb-4">
+                    {isEditing ? 'แก้ไขชื่อธนาคาร' : 'เพิ่มธนาคารใหม่'}
+                  </h3>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">ชื่อธนาคาร</label>
+                      <input
+                        type="text"
+                        value={bankName}
+                        onChange={(e) => setBankName(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-500"
+                        placeholder="เช่น SCB, BAY, TMB"
+                        required
+                      />
+                    </div>
+                    <div className="flex gap-3 pt-4">
+                      <button
+                        onClick={handleSubmit}
+                        className="flex-1 bg-gray-900 text-white py-2 px-4 rounded-md hover:bg-gray-800 transition-colors"
+                      >
+                        {isEditing ? 'อัปเดต' : 'บันทึก'}
+                      </button>
+                      <button
+                        onClick={onCancel}
+                        className="flex-1 bg-gray-200 text-gray-800 py-2 px-4 rounded-md hover:bg-gray-300 transition-colors"
+                      >
+                        ยกเลิก
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          };
+
           const currentData = getCurrentMonthData();
+          const currentCreditData = getCurrentMonthCreditData();
           const totalIncome = getTotalIncome(currentData);
           const totalOutcome = getTotalOutcome(currentData);
-          const balance = getBalance(currentData);
+          const totalCreditOutcome = getTotalCreditOutcome(currentCreditData);
+          const balance = getBalance(currentData, currentCreditData);
 
           return (
             <div className="min-h-screen bg-gray-50">
@@ -412,6 +516,19 @@
                       >
                         <CreditCardIcon />
                         <span className="ml-2">Credit Installments</span>
+                      </button>
+                      <button
+                        onClick={() => setCurrentPage('banks')}
+                        className={`inline-flex items-center px-1 pt-1 text-sm font-medium ${
+                          currentPage === 'banks' 
+                            ? 'text-gray-900 border-b-2 border-gray-900' 
+                            : 'text-gray-500 hover:text-gray-700'
+                        }`}
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                        </svg>
+                        <span className="ml-2">Bank Management</span>
                       </button>
                     </div>
                   </div>
@@ -455,7 +572,7 @@
                     </div>
 
                     {/* Summary Cards */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
                       <div className="bg-white p-6 rounded-lg shadow-sm border">
                         <h3 className="text-sm font-medium text-gray-500 mb-2">รายรับรวม</h3>
                         <p className="text-2xl font-semibold text-green-600">
@@ -463,9 +580,15 @@
                         </p>
                       </div>
                       <div className="bg-white p-6 rounded-lg shadow-sm border">
-                        <h3 className="text-sm font-medium text-gray-500 mb-2">รายจ่ายรวม</h3>
+                        <h3 className="text-sm font-medium text-gray-500 mb-2">รายจ่ายทั่วไป</h3>
                         <p className="text-2xl font-semibold text-red-600">
                           ฿{totalOutcome.toLocaleString()}
+                        </p>
+                      </div>
+                      <div className="bg-white p-6 rounded-lg shadow-sm border">
+                        <h3 className="text-sm font-medium text-gray-500 mb-2">ผ่อนบัตรเครดิต</h3>
+                        <p className="text-2xl font-semibold text-orange-600">
+                          ฿{totalCreditOutcome.toLocaleString()}
                         </p>
                       </div>
                       <div className="bg-white p-6 rounded-lg shadow-sm border">
@@ -477,7 +600,7 @@
                     </div>
 
                     {/* Transactions Table */}
-                    <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
+                    <div className="bg-white rounded-lg shadow-sm border overflow-hidden mb-8">
                       <div className="px-6 py-4 border-b border-gray-200">
                         <h3 className="text-lg font-medium text-gray-900">
                           รายรับ-รายจ่าย {monthNames[selectedMonth - 1]} {selectedYear}
@@ -557,6 +680,45 @@
                         </table>
                       </div>
                     </div>
+
+                    {/* Credit Installments for Current Month */}
+                    {currentCreditData.length > 0 && (
+                      <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
+                        <div className="px-6 py-4 border-b border-gray-200">
+                          <h3 className="text-lg font-medium text-gray-900">
+                            รายการผ่อนบัตรเครดิต {monthNames[selectedMonth - 1]} {selectedYear}
+                          </h3>
+                        </div>
+                        <div className="overflow-x-auto">
+                          <table className="min-w-full divide-y divide-gray-200">
+                            <thead className="bg-orange-50">
+                              <tr>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ธนาคาร</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">รายการ</th>
+                                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">ยอดหนี้/เดือน</th>
+                              </tr>
+                            </thead>
+                            <tbody className="bg-white divide-y divide-gray-200">
+                              {currentCreditData.map((credit) => (
+                                <tr key={credit.id} className="hover:bg-gray-50">
+                                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+                                      {credit.bank}
+                                    </span>
+                                  </td>
+                                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                    {credit.item}
+                                  </td>
+                                  <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-orange-600 font-medium">
+                                    ฿{credit.amount.toLocaleString()}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -643,7 +805,7 @@
                     <div className="mt-8">
                       <h3 className="text-lg font-medium text-gray-900 mb-4">สรุปยอดรวมตามธนาคาร</h3>
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        {['KTC', 'Kbank', 'SP', 'SCB', 'BBL'].map(bank => {
+                        {banks.map(bank => {
                           const bankTotal = creditInstallments
                             .filter(c => c.bank === bank)
                             .reduce((sum, c) => sum + c.amount, 0);
@@ -659,6 +821,107 @@
                             </div>
                           );
                         })}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {currentPage === 'banks' && (
+                  <div>
+                    {/* Header */}
+                    <div className="flex justify-between items-center mb-6">
+                      <h2 className="text-2xl font-semibold text-gray-900">จัดการธนาคาร/บัตรเครดิต</h2>
+                      <button
+                        onClick={() => setShowBankForm(true)}
+                        className="inline-flex items-center px-4 py-2 bg-gray-900 text-white rounded-md hover:bg-gray-800 transition-colors"
+                      >
+                        <PlusIcon />
+                        <span className="ml-2">เพิ่มธนาคาร</span>
+                      </button>
+                    </div>
+
+                    {/* Banks Table */}
+                    <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
+                      <div className="overflow-x-auto">
+                        <table className="min-w-full divide-y divide-gray-200">
+                          <thead className="bg-gray-50">
+                            <tr>
+                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ชื่อธนาคาร</th>
+                              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">จำนวนรายการผ่อน</th>
+                              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">ยอดรวม</th>
+                              <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">จัดการ</th>
+                            </tr>
+                          </thead>
+                          <tbody className="bg-white divide-y divide-gray-200">
+                            {banks.length === 0 ? (
+                              <tr>
+                                <td colSpan="4" className="px-6 py-8 text-center text-gray-500">
+                                  ไม่มีธนาคาร
+                                </td>
+                              </tr>
+                            ) : (
+                              banks.map((bank) => {
+                                const bankInstallments = creditInstallments.filter(c => c.bank === bank);
+                                const bankTotal = bankInstallments.reduce((sum, c) => sum + c.amount, 0);
+                                
+                                return (
+                                  <tr key={bank} className="hover:bg-gray-50">
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
+                                      {bank}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900">
+                                      {bankInstallments.length} รายการ
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900 font-medium">
+                                      ฿{bankTotal.toLocaleString()}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-center">
+                                      <div className="flex justify-center space-x-2">
+                                        <button
+                                          onClick={() => setEditingBank(bank)}
+                                          className="text-blue-600 hover:text-blue-800"
+                                          title="แก้ไข"
+                                        >
+                                          <EditIcon />
+                                        </button>
+                                        <button
+                                          onClick={() => handleDeleteBank(bank)}
+                                          className="text-red-600 hover:text-red-800"
+                                          title="ลบ"
+                                        >
+                                          <TrashIcon />
+                                        </button>
+                                      </div>
+                                    </td>
+                                  </tr>
+                                );
+                              })
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
+                    {/* Bank Statistics */}
+                    <div className="mt-8">
+                      <h3 className="text-lg font-medium text-gray-900 mb-4">สถิติการใช้งาน</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div className="bg-white p-6 rounded-lg shadow-sm border">
+                          <h4 className="text-sm font-medium text-gray-500 mb-2">จำนวนธนาคารทั้งหมด</h4>
+                          <p className="text-2xl font-semibold text-gray-900">{banks.length}</p>
+                        </div>
+                        <div className="bg-white p-6 rounded-lg shadow-sm border">
+                          <h4 className="text-sm font-medium text-gray-500 mb-2">ธนาคารที่มีรายการผ่อน</h4>
+                          <p className="text-2xl font-semibold text-green-600">
+                            {banks.filter(bank => creditInstallments.some(c => c.bank === bank)).length}
+                          </p>
+                        </div>
+                        <div className="bg-white p-6 rounded-lg shadow-sm border">
+                          <h4 className="text-sm font-medium text-gray-500 mb-2">ยอดผ่อนรวมทั้งหมด</h4>
+                          <p className="text-2xl font-semibold text-red-600">
+                            ฿{creditInstallments.reduce((sum, c) => sum + c.amount, 0).toLocaleString()}
+                          </p>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -691,11 +954,19 @@
                 />
               )}
 
-              {editingCredit && (
-                <CreditForm
-                  onSubmit={handleEditCredit}
-                  onCancel={() => setEditingCredit(null)}
-                  editData={editingCredit}
+              {showBankForm && (
+                <BankForm
+                  onSubmit={handleAddBank}
+                  onCancel={() => setShowBankForm(false)}
+                  isEditing={false}
+                />
+              )}
+
+              {editingBank && (
+                <BankForm
+                  onSubmit={handleEditBank}
+                  onCancel={() => setEditingBank(null)}
+                  editData={editingBank}
                   isEditing={true}
                 />
               )}
