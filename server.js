@@ -28,19 +28,14 @@ const firebaseApp = initializeApp({
 });
 const db = getFirestore(firebaseApp);
 
-// Middleware
-app.use('/webhook', line.middleware(lineConfig));
-app.use(express.json());
-
-// Health check
+// Health check (ไม่ต้องใช้ middleware)
 app.get('/', (req, res) => {
   res.send('Expense Bot Server is running! 🚀');
 });
 
-// LINE Webhook
-app.post('/webhook', async (req, res) => {
+// LINE Webhook — ใช้ line.middleware เฉพาะ route นี้
+app.post('/webhook', line.middleware(lineConfig), async (req, res) => {
   res.status(200).end();
-
   const events = req.body.events;
   await Promise.all(events.map(handleEvent));
 });
